@@ -68,6 +68,7 @@ func NewRunCommand(dockerCli command.Cli) *cobra.Command {
 }
 
 func runRun(dockerCli command.Cli, flags *pflag.FlagSet, ropts *runOptions, copts *containerOptions) error {
+	// 这是一个map类型,map中有地址等信息 @gaoweibupt 输出了一个空
 	proxyConfig := dockerCli.ConfigFile().ParseProxyConfig(dockerCli.Client().DaemonHost(), opts.ConvertKVStringsToMapWithNil(copts.env.GetAll()))
 	newEnv := []string{}
 	for k, v := range proxyConfig {
@@ -88,6 +89,8 @@ func runRun(dockerCli command.Cli, flags *pflag.FlagSet, ropts *runOptions, copt
 		reportError(dockerCli.Err(), "run", err.Error(), true)
 		return cli.StatusError{StatusCode: 125}
 	}
+
+	// 真正的业务逻辑 @gaoweibupt
 	return runContainer(dockerCli, ropts, copts, containerConfig)
 }
 
@@ -130,6 +133,7 @@ func runContainer(dockerCli command.Cli, opts *runOptions, copts *containerOptio
 	ctx, cancelFun := context.WithCancel(context.Background())
 	defer cancelFun()
 
+	// 创建容器 @gaoweibupt
 	createResponse, err := createContainer(ctx, dockerCli, containerConfig, &opts.createOptions)
 	if err != nil {
 		reportError(stderr, "run", err.Error(), true)
@@ -168,6 +172,7 @@ func runContainer(dockerCli command.Cli, opts *runOptions, copts *containerOptio
 
 	statusChan := waitExitOrRemoved(ctx, dockerCli, createResponse.ID, copts.autoRemove)
 
+	// 运行容器 @gaoweibupt
 	//start the container
 	if err := client.ContainerStart(ctx, createResponse.ID, types.ContainerStartOptions{}); err != nil {
 		// If we have hijackedIOStreamer, we should notify

@@ -212,6 +212,7 @@ func createContainer(ctx context.Context, dockerCli command.Cli, containerConfig
 		}
 	}
 
+	// 创建容器 @gaoweibupt
 	//create the container
 	response, err := dockerCli.Client().ContainerCreate(ctx, config, hostConfig, networkingConfig, opts.name)
 

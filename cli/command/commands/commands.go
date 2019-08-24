@@ -38,10 +38,13 @@ func AddCommands(cmd *cobra.Command, dockerCli command.Cli) {
 
 		// container
 		container.NewContainerCommand(dockerCli),
+
+		// run
 		container.NewRunCommand(dockerCli),
 
 		// image
 		image.NewImageCommand(dockerCli),
+		// build
 		image.NewBuildCommand(dockerCli),
 
 		// builder
@@ -89,6 +92,8 @@ func AddCommands(cmd *cobra.Command, dockerCli command.Cli) {
 		// context
 		context.NewContextCommand(dockerCli),
 
+
+		// 如果设置了DOCKER_HIDE_LEGACY_COMMANDS 变量 下面的命令将会被隐藏 @gaoweibupt
 		// legacy commands may be hidden
 		hide(stack.NewTopLevelDeployCommand(dockerCli)),
 		hide(system.NewEventsCommand(dockerCli)),

@@ -35,20 +35,26 @@ func newDockerCommand(dockerCli *command.DockerCli) *cli.TopLevelCommand {
 	cmd := &cobra.Command{
 		Use:              "docker [OPTIONS] COMMAND [ARG...]",
 		Short:            "A self-sufficient runtime for containers",
-		SilenceUsage:     true,
-		SilenceErrors:    true,
-		TraverseChildren: true,
+		SilenceUsage:     true,  //当错误发生时 静默用法
+		SilenceErrors:    true,  //安静的错误流
+		TraverseChildren: true,  //执行子命令前传递父命令参数
+		// 运行但是返回一个错误
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
+				// 如果执行了docker，后面没有添加子命令 输出help
 				return command.ShowHelp(dockerCli.Err())(cmd, args)
 			}
+			// 没有匹配到命令
 			return fmt.Errorf("docker: '%s' is not a docker command.\nSee 'docker --help'", args[0])
 
 		},
+		// 预运行 但是返回一个错误
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			return isSupported(cmd, dockerCli)
 		},
+		// 命令的版本
 		Version:               fmt.Sprintf("%s, build %s", version.Version, version.GitCommit),
+		// 打印help时禁用flags
 		DisableFlagsInUseLine: true,
 	}
 	opts, flags, helpCmd = cli.SetupRootCommand(cmd)
@@ -60,6 +66,8 @@ func newDockerCommand(dockerCli *command.DockerCli) *cli.TopLevelCommand {
 	setHelpFunc(dockerCli, cmd)
 
 	cmd.SetOutput(dockerCli.Out())
+
+	// 这里重点， 把docker所有的子命令都添加进cmd @gaoweibupt
 	commands.AddCommands(cmd, dockerCli)
 
 	cli.DisableFlagsInUseLine(cmd)
@@ -278,17 +286,21 @@ func runDocker(dockerCli *command.DockerCli) error {
 	// We've parsed global args already, so reset args to those
 	// which remain.
 	cmd.SetArgs(args)
+
+	// 真正的这里初始化cobra  @gaoweibupt
 	return cmd.Execute()
 }
 
 func main() {
+	// init entrance
+	// 创建dockerCli
 	dockerCli, err := command.NewDockerCli()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 	logrus.SetOutput(dockerCli.Err())
-
+	// 执行命令 并获取命令的返回值
 	if err := runDocker(dockerCli); err != nil {
 		if sterr, ok := err.(cli.StatusError); ok {
 			if sterr.Status != "" {

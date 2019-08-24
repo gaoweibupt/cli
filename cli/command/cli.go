@@ -70,16 +70,27 @@ type Cli interface {
 // DockerCli is an instance the docker command line client.
 // Instances of the client can be returned from NewDockerCli.
 type DockerCli struct {
+	// docker 的配置文件，但是本地没有找到 @gaoweibupt
 	configFile            *configfile.ConfigFile
+
+	// 标准输出、标准输入、错误输出, 错误输出直接使用系统输出
 	in                    *streams.In
 	out                   *streams.Out
 	err                   io.Writer
+
+
 	client                client.APIClient
 	serverInfo            ServerInfo
 	clientInfo            ClientInfo
+
+	// 环境变量 DOCKER_CONTENT_TRUST
 	contentTrust          bool
+	// socket 通信的地址，建立一个grpc的连接, 这里是一个建立连接的函数
 	newContainerizeClient func(string) (clitypes.ContainerizedClient, error)
+	//
 	contextStore          store.Store
+
+
 	currentContext        string
 	dockerEndpoint        docker.Endpoint
 	contextStoreConfig    store.Config
@@ -187,6 +198,7 @@ func WithInitializeClient(makeClient func(dockerCli *DockerCli) (client.APIClien
 	}
 }
 
+// cobra 初始化的时候回调用该命令 @gaoweibupt
 // Initialize the dockerCli runs initialization that must happen after command
 // line flags are parsed.
 func (cli *DockerCli) Initialize(opts *cliflags.ClientOptions, ops ...InitializeOpt) error {
@@ -244,6 +256,8 @@ func (cli *DockerCli) Initialize(opts *cliflags.ClientOptions, ops ...Initialize
 	if experimentalValue = os.Getenv("DOCKER_CLI_EXPERIMENTAL"); experimentalValue == "" {
 		experimentalValue = cli.configFile.Experimental
 	}
+
+	// 实验性 @gaoweibupt
 	hasExperimental, err := isEnabled(experimentalValue)
 	if err != nil {
 		return errors.Wrap(err, "Experimental field")
@@ -252,6 +266,8 @@ func (cli *DockerCli) Initialize(opts *cliflags.ClientOptions, ops ...Initialize
 		DefaultVersion:  cli.client.ClientVersion(),
 		HasExperimental: hasExperimental,
 	}
+	// curl -XGET --unix-socket /var/run/docker.sock "http://localhost/_ping"
+	// @gaoweibupt
 	cli.initializeFromClient()
 	return nil
 }
@@ -450,15 +466,21 @@ type ClientInfo struct {
 func NewDockerCli(ops ...DockerCliOption) (*DockerCli, error) {
 	cli := &DockerCli{}
 	defaultOps := []DockerCliOption{
+		// 一些修改函数 @gaoweibupt
+		// 通过环境变量DOCKER_CONTENT_TRUST 设置contentTrust, 默认禁用
 		WithContentTrustFromEnv(),
+		// newContainerizeClient 通信的地址, 建立与Containerize的grpc的连接
 		WithContainerizedClient(containerizedengine.NewClient),
 	}
+	// 设置contextStoreConfig, 元数据处理， 使用默认配置
 	cli.contextStoreConfig = DefaultContextStoreConfig()
 	ops = append(defaultOps, ops...)
+	// 把前面定义的函数都执行一遍
 	if err := cli.Apply(ops...); err != nil {
 		return nil, err
 	}
 	if cli.out == nil || cli.in == nil || cli.err == nil {
+		// 这里先获取系统的标准输入、标准输出、错误输出, 并重定向到文件
 		stdin, stdout, stderr := term.StdStreams()
 		if cli.in == nil {
 			cli.in = streams.NewIn(stdin)
